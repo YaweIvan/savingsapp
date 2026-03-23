@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Savings App{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+{% if show_nav is not false %}
+<header class="navbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='logoicon.png') }}" alt="SavingsApp logo" class="brand-logo" />
+    SavingsApp
+  </div>
+  <nav>
+    {% if session.get('admin') %}
+      <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('register_user') }}">+ User</a>
+      <a href="{{ url_for('admin_message') }}">Message</a>
+      <a href="{{ url_for('admin_logout') }}" style="color:#fca5a5;">Logout</a>
+    {% else %}
+      <a href="{{ url_for('welcome') }}">Home</a>
+      <a href="{{ url_for('admin_login') }}">Admin</a>
+    {% endif %}
+  </nav>
+</header>
+{% endif %}
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="container" style="padding-bottom:0;">
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

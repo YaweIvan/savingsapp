@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% set show_nav = false %}
+{% block title %}Admin Login – SavingsApp{% endblock %}
+
+{% block content %}
+<div class="login-wrap">
+  <div class="login-box">
+    <div class="logo">
+      <img src="{{ url_for('static', filename='logoicon.png') }}" alt="SavingsApp logo" class="card-logo-img" />
+    </div>
+    <h2>Admin Login</h2>
+    <p class="subtitle">SavingsApp Administration</p>
+
+    {% if error %}
+      <div class="flash flash-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('admin_login') }}">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="admin" required autofocus />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div style="position:relative;">
+          <input type="password" name="password" id="pwd-field" placeholder="••••••••" required
+                 style="padding-right:2.75rem;" />
+          <button type="button" id="eye-btn" onclick="togglePwd()"
+                  style="position:absolute; right:.6rem; top:50%; transform:translateY(-50%);
+                         background:none; border:none; cursor:pointer; color:var(--gray-500);
+                         font-size:1.1rem; line-height:1; padding:0;"
+                  title="Show / hide password">
+            👁
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:.5rem;">
+        Login →
+      </button>
+    </form>
+
+    <!-- Demo credentials -->
+    <div style="margin-top:1.5rem; background:var(--gray-50); border:1px solid var(--gray-200);
+                border-radius:8px; padding:.85rem 1rem; font-size:.82rem;">
+      <p style="font-weight:600; color:var(--gray-700); margin-bottom:.5rem;">🔑 Demo Credentials</p>
+      <p style="margin-bottom:.25rem;">
+        <span style="color:var(--gray-500);">Admin →</span>
+        <strong>admin</strong> / <strong>admin123</strong>
+      </p>
+      {% if demo_user_id %}
+      <p style="color:var(--gray-500); margin-bottom:.25rem;">
+        User Dashboard →
+        <a href="{{ url_for('user_dashboard', user_id=demo_user_id) }}" style="color:var(--green); font-weight:600;">
+          /user/{{ demo_user_id }}
+        </a>
+      </p>
+      {% else %}
+      <p style="color:var(--gray-500); margin-bottom:.25rem;">
+        User Dashboard → No member yet. Register one first from the admin dashboard.
+      </p>
+      {% endif %}
+      <p style="color:var(--gray-500);">
+        User login uses User ID only (no password field in this app).
+      </p>
+    </div>
+
+    <p style="text-align:center; margin-top:1rem; font-size:.85rem; color:var(--gray-500);">
+      <a href="{{ url_for('welcome') }}" style="color:var(--green);">← Back to Home</a>
+    </p>
+  </div>
+</div>
+
+<script>
+function togglePwd() {
+  const field = document.getElementById('pwd-field');
+  const btn   = document.getElementById('eye-btn');
+  if (field.type === 'password') {
+    field.type = 'text';
+    btn.textContent = '🙈';
+    btn.title = 'Hide password';
+  } else {
+    field.type = 'password';
+    btn.textContent = '👁';
+    btn.title = 'Show password';
+  }
+}
+</script>
+{% endblock %}

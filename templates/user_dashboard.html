@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ user.name }} – My Savings{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Profile header -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="profile-block">
+      {% if user.photo %}
+        <img src="{{ url_for('static', filename=user.photo.replace('static/', '').replace('static\\', '')) }}"
+             class="avatar avatar-lg" alt="{{ user.name }}" onerror="this.style.display='none'" />
+      {% else %}
+        <div class="avatar avatar-lg" style="background:var(--gray-200); display:flex; align-items:center; justify-content:center; font-size:2.5rem;">👤</div>
+      {% endif %}
+      <div class="info">
+        <h2>{{ user.name }}</h2>
+        <p>📞 {{ user.phone or '—' }} &nbsp;|&nbsp; 📍 {{ user.location or '—' }}</p>
+        <p style="font-size:.8rem; color:var(--gray-500);">Member ID: {{ user.id }}</p>
+      </div>
+    </div>
+
+    <!-- Balance cards -->
+    <div class="stat-grid" style="margin-bottom:0;">
+      <div class="stat-card green">
+        <span class="label">Total Deposits</span>
+        <span class="value">{{ "{:,.0f}".format(totals.deposits) }}</span>
+      </div>
+      <div class="stat-card red">
+        <span class="label">Withdrawn</span>
+        <span class="value">{{ "{:,.0f}".format(totals.withdrawals) }}</span>
+      </div>
+      <div class="stat-card amber">
+        <span class="label">Borrowed</span>
+        <span class="value">{{ "{:,.0f}".format(totals.borrowed) }}</span>
+      </div>
+      <div class="stat-card purple">
+        <span class="label">Rewards</span>
+        <span class="value">{{ "{:,.0f}".format(totals.rewards) }}</span>
+      </div>
+      <div class="stat-card {{ 'green' if net >= 0 else 'red' }}">
+        <span class="label">Net Balance</span>
+        <span class="value">{{ "{:,.0f}".format(net) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="section-header">
+      <h2>My Transactions</h2>
+      <span style="font-size:.85rem; color:var(--gray-500);">{{ transactions | length }} records</span>
+    </div>
+    {% if transactions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          <tr>
+            <td>{{ t.date }}</td>
+            <td><span class="badge badge-{{ t.type }}">{{ t.type.title() }}</span></td>
+            <td><strong>{{ "{:,.0f}".format(t.amount) }}</strong></td>
+            <td style="color:var(--gray-500);">{{ t.note or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:var(--gray-500); text-align:center; padding:1.5rem;">No transactions recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Messages from admin -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="section-header">
+      <h2>Messages from Admin</h2>
+    </div>
+    {% if messages %}
+    <div class="msg-list">
+      {% for m in messages %}
+      <div class="msg-item">
+        <div class="meta">{{ m.date_sent }}</div>
+        <div>{{ m.message }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p style="color:var(--gray-500);">No messages yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Send message to admin -->
+  <div class="card">
+    <div class="section-header">
+      <h2>Send Message to Admin</h2>
+    </div>
+    <form method="POST" action="{{ url_for('user_send_message', user_id=user.id) }}">
+      <div class="form-group">
+        <textarea name="message" rows="3" required placeholder="Write your message here…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-secondary">✉ Send to Admin</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – SavingsApp{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="section-header">
+    <h1 class="page-title" style="margin-bottom:0;">Admin Dashboard</h1>
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+      <a href="{{ url_for('register_user') }}" class="btn btn-primary btn-sm">+ Register User</a>
+      <a href="{{ url_for('admin_message') }}" class="btn btn-secondary btn-sm">✉ Send Message</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card blue">
+      <span class="label">Total Members</span>
+      <span class="value">{{ stats.total_users }}</span>
+    </div>
+    <div class="stat-card green">
+      <span class="label">Total Deposits</span>
+      <span class="value">{{ "{:,.0f}".format(stats.total_deposits) }}</span>
+    </div>
+    <div class="stat-card red">
+      <span class="label">Withdrawals</span>
+      <span class="value">{{ "{:,.0f}".format(stats.total_withdraw) }}</span>
+    </div>
+    <div class="stat-card amber">
+      <span class="label">Loans / Borrowed</span>
+      <span class="value">{{ "{:,.0f}".format(stats.total_loans) }}</span>
+    </div>
+    <div class="stat-card purple">
+      <span class="label">Rewards</span>
+      <span class="value">{{ "{:,.0f}".format(stats.total_rewards) }}</span>
+    </div>
+  </div>
+
+  <!-- Members Table -->
+  <div class="card">
+    <div class="section-header">
+      <h2>Members ({{ user_data | length }})</h2>
+    </div>
+    {% if user_data %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Photo</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Location</th>
+            <th>Deposits</th>
+            <th>Withdrawn</th>
+            <th>Loans</th>
+            <th>Rewards</th>
+            <th>Net Balance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in user_data %}
+          {% set u = item.user %}
+          <tr>
+            <td>{{ u.id }}</td>
+            <td>
+              {% if u.photo %}
+                <img src="{{ url_for('static', filename=u.photo.replace('static/', '').replace('static\\', '')) }}"
+                     class="user-row-photo" alt="photo" onerror="this.src=''">
+              {% else %}
+                <div class="user-row-photo" style="background:var(--gray-300); display:flex; align-items:center; justify-content:center; font-size:1rem;">👤</div>
+              {% endif %}
+            </td>
+            <td><strong>{{ u.name }}</strong><br><small style="color:var(--gray-500);">ID: {{ u.id_number or '—' }}</small></td>
+            <td>{{ u.phone or '—' }}</td>
+            <td>{{ u.location or '—' }}</td>
+            <td style="color:var(--green);">{{ "{:,.0f}".format(item.totals.deposits) }}</td>
+            <td style="color:var(--red);">{{ "{:,.0f}".format(item.totals.withdrawals) }}</td>
+            <td style="color:var(--amber);">{{ "{:,.0f}".format(item.totals.borrowed) }}</td>
+            <td style="color:var(--purple);">{{ "{:,.0f}".format(item.totals.rewards) }}</td>
+            <td>
+              <span class="{{ 'net-positive' if item.net >= 0 else 'net-negative' }}">
+                {{ "{:,.0f}".format(item.net) }}
+              </span>
+            </td>
+            <td>
+              <a href="{{ url_for('user_detail', user_id=u.id) }}" class="btn btn-outline btn-sm">View</a>
+              <a href="{{ url_for('add_transaction', user_id=u.id) }}" class="btn btn-primary btn-sm">+ Txn</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:var(--gray-500); text-align:center; padding:2rem;">No members yet. <a href="{{ url_for('register_user') }}" style="color:var(--green);">Register one →</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

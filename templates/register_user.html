@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Register User – SavingsApp{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+  <h1 class="page-title">Register New Member</h1>
+  <div class="card">
+    <div class="card-logo-wrap">
+      <img src="{{ url_for('static', filename='logoicon.png') }}" alt="SavingsApp logo" class="card-logo-img" />
+    </div>
+    <form method="POST" action="{{ url_for('register_user') }}" enctype="multipart/form-data">
+
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" name="name" required placeholder="e.g. John Doe" />
+      </div>
+
+      <div class="form-group">
+        <label>National ID Number</label>
+        <div style="position:relative;">
+          <input type="password" id="id-number-field" name="id_number" placeholder="e.g. CM12345678"
+                 style="padding-right:2.75rem;" />
+          <button type="button" id="id-eye-btn" onclick="toggleIdNumber()"
+                  style="position:absolute; right:.6rem; top:50%; transform:translateY(-50%);
+                         background:none; border:none; cursor:pointer; color:var(--gray-500);
+                         font-size:1.1rem; line-height:1; padding:0;"
+                  title="Show / hide ID number">
+            👁
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" name="phone" placeholder="e.g. +256 700 000000" />
+      </div>
+
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" name="location" placeholder="e.g. Kampala, Uganda" />
+      </div>
+
+      <div class="form-group">
+        <label>Profile Photo</label>
+        <input type="file" name="photo" accept="image/*" />
+        <small style="color:var(--gray-500);">JPG, PNG, WEBP · max 5 MB</small>
+      </div>
+
+      <div class="form-group">
+        <label>Extra Notes</label>
+        <textarea name="notes" placeholder="Any additional information..."></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Register Member</button>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleIdNumber() {
+  const field = document.getElementById('id-number-field');
+  const btn   = document.getElementById('id-eye-btn');
+  if (field.type === 'password') {
+    field.type = 'text';
+    btn.textContent = '🙈';
+    btn.title = 'Hide ID number';
+  } else {
+    field.type = 'password';
+    btn.textContent = '👁';
+    btn.title = 'Show ID number';
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ user.name }} – SavingsApp{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Back + actions -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:.75rem;">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">← Dashboard</a>
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+      <a href="{{ url_for('add_transaction', user_id=user.id) }}" class="btn btn-primary btn-sm">+ Transaction</a>
+      <a href="{{ url_for('admin_message') }}?uid={{ user.id }}" class="btn btn-secondary btn-sm">✉ Message</a>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="profile-block">
+      {% if user.photo %}
+        <img src="{{ url_for('static', filename=user.photo.replace('static/', '').replace('static\\', '')) }}"
+             class="avatar avatar-lg" alt="{{ user.name }}" onerror="this.style.display='none'" />
+      {% else %}
+        <div class="avatar avatar-lg" style="background:var(--gray-200); display:flex; align-items:center; justify-content:center; font-size:2.5rem;">👤</div>
+      {% endif %}
+      <div class="info">
+        <h2>{{ user.name }}</h2>
+        <p>ID: {{ user.id_number or '—' }} &nbsp;|&nbsp; 📞 {{ user.phone or '—' }} &nbsp;|&nbsp; 📍 {{ user.location or '—' }}</p>
+        {% if user.notes %}<p style="margin-top:.25rem;">{{ user.notes }}</p>{% endif %}
+        <p style="margin-top:.25rem; font-size:.8rem; color:var(--gray-500);">Registered: {{ user.created_at }}</p>
+      </div>
+    </div>
+
+    <!-- Totals -->
+    <div class="stat-grid" style="margin-bottom:0;">
+      <div class="stat-card green">
+        <span class="label">Deposits</span>
+        <span class="value">{{ "{:,.0f}".format(totals.deposits) }}</span>
+      </div>
+      <div class="stat-card red">
+        <span class="label">Withdrawals</span>
+        <span class="value">{{ "{:,.0f}".format(totals.withdrawals) }}</span>
+      </div>
+      <div class="stat-card amber">
+        <span class="label">Borrowed</span>
+        <span class="value">{{ "{:,.0f}".format(totals.borrowed) }}</span>
+      </div>
+      <div class="stat-card purple">
+        <span class="label">Rewards</span>
+        <span class="value">{{ "{:,.0f}".format(totals.rewards) }}</span>
+      </div>
+      <div class="stat-card {{ 'green' if net >= 0 else 'red' }}">
+        <span class="label">Net Balance</span>
+        <span class="value">{{ "{:,.0f}".format(net) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction History -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="section-header">
+      <h2>Transaction History</h2>
+      <span style="font-size:.85rem; color:var(--gray-500);">{{ transactions | length }} records</span>
+    </div>
+    {% if transactions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          <tr>
+            <td>{{ t.date }}</td>
+            <td><span class="badge badge-{{ t.type }}">{{ t.type.title() }}</span></td>
+            <td><strong>{{ "{:,.0f}".format(t.amount) }}</strong></td>
+            <td style="color:var(--gray-500);">{{ t.note or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:var(--gray-500); text-align:center; padding:1.5rem;">No transactions yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Messages received -->
+  <div class="card">
+    <div class="section-header">
+      <h2>Messages</h2>
+    </div>
+    {% if messages %}
+    <div class="msg-list">
+      {% for m in messages %}
+      <div class="msg-item">
+        <div class="meta">{{ m.date_sent }} · From {{ 'Admin' if m.sender_type == 'admin' else 'User' }}</div>
+        <div>{{ m.message }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p style="color:var(--gray-500);">No messages.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
