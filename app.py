@@ -1,85 +1,52 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'savingsapp-secret-key-2024')
 
+import traceback
+from flask import Response
+
+@app.errorhandler(500)
+def internal_error(e):
+    tb = traceback.format_exc()
+    return Response(f'<pre style="color:red;padding:2rem;">{tb}</pre>', status=500)
+
+# PostgreSQL Connection
+DB_CONFIG = {
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'database': os.environ.get('DB_NAME', 'savings_app'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', 'postgres'),
+    'port': os.environ.get('DB_PORT', '5432')
+}
+
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
-DATABASE_PATH = os.environ.get('DATABASE_PATH', 'database.db')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
+def get_db():
+    conn = psycopg2.connect(**DB_CONFIG)
+    return conn
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 # ─────────────────────── DATABASE SETUP ───────────────────────
 def init_db():
-    conn = get_db()
-    c = conn.cursor()
-
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id       INTEGER PRIMARY KEY AUTOINCREMENT,
-        name     TEXT NOT NULL,
-        id_number TEXT,
-        phone    TEXT,
-        location TEXT,
-        photo    TEXT,
-        notes    TEXT,
-        created_at TEXT DEFAULT (datetime('now','localtime'))
-    )''')
-
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS transactions (
-        id       INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id  INTEGER NOT NULL,
-        type     TEXT NOT NULL,
-        amount   REAL NOT NULL,
-        note     TEXT,
-        date     TEXT DEFAULT (datetime('now','localtime')),
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )''')
-
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS admin (
-        id       INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT
-    )''')
-
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS messages (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_type TEXT,
-        sender_id   INTEGER,
-        receiver_id INTEGER,
-        message     TEXT,
-        date_sent   TEXT DEFAULT (datetime('now','localtime'))
-    )''')
-
-    # Default admin account
-    c.execute("SELECT id FROM admin WHERE username='admin'")
-    if not c.fetchone():
-        c.execute("INSERT INTO admin (username, password) VALUES (?,?)", ('admin', 'admin123'))
-
-    conn.commit()
-    conn.close()
-
-
-init_db()
+    pass  # Tables already created in pgAdmin
 
 
 # ─────────────────────── HELPERS ───────────────────────
@@ -89,32 +56,36 @@ def save_photo(file_obj):
         filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{secure_filename(file_obj.filename)}"
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file_obj.save(path)
-        # Return a forward-slash path for use in HTML src
         return path.replace('\\', '/')
     return None
 
 
 def user_totals(user_id, conn):
-    c = conn.cursor()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     def _sum(t):
-        row = c.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type=?",
+        cursor.execute(
+            "SELECT COALESCE(SUM(amount),0) AS v FROM transactions WHERE user_id=%s AND type=%s",
             (user_id, t)
-        ).fetchone()
-        return row[0]
-    return {
+        )
+        return cursor.fetchone()['v']
+    result = {
         'deposits':    _sum('deposit'),
         'withdrawals': _sum('withdrawal'),
         'rewards':     _sum('reward'),
         'borrowed':    _sum('loan'),
     }
+    cursor.close()
+    return result
 
 
 def get_demo_user_id():
     conn = get_db()
-    row = conn.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users ORDER BY id LIMIT 1")
+    row = cursor.fetchone()
+    cursor.close()
     conn.close()
-    return row['id'] if row else None
+    return row[0] if row else None
 
 
 # ─────────────────────── WELCOME ───────────────────────
@@ -126,16 +97,18 @@ def welcome():
 # ─────────────────────── ADMIN AUTH ───────────────────────
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
-    if 'admin' in session:
-        return redirect(url_for('admin_dashboard'))
     error = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         conn = get_db()
-        admin = conn.execute(
-            "SELECT * FROM admin WHERE username=? AND password=?", (username, password)
-        ).fetchone()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM admin WHERE username=%s AND password=%s", 
+            (username, password)
+        )
+        admin = cursor.fetchone()
+        cursor.close()
         conn.close()
         if admin:
             session['admin'] = username
@@ -156,7 +129,9 @@ def admin_dashboard():
     if 'admin' not in session:
         return redirect(url_for('admin_login'))
     conn = get_db()
-    users = conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM users ORDER BY created_at DESC")
+    users = cursor.fetchall()
 
     # Compute totals per user
     user_data = []
@@ -166,13 +141,29 @@ def admin_dashboard():
         user_data.append({'user': u, 'totals': totals, 'net': net})
 
     # Global stats
+    cursor.execute("SELECT COUNT(*) AS v FROM users")
+    total_users = cursor.fetchone()['v']
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) AS v FROM transactions WHERE type='deposit'")
+    total_deposits = cursor.fetchone()['v']
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) AS v FROM transactions WHERE type='withdrawal'")
+    total_withdraw = cursor.fetchone()['v']
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) AS v FROM transactions WHERE type='loan'")
+    total_loans = cursor.fetchone()['v']
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) AS v FROM transactions WHERE type='reward'")
+    total_rewards = cursor.fetchone()['v']
+
     stats = {
-        'total_users':    conn.execute("SELECT COUNT(*) FROM users").fetchone()[0],
-        'total_deposits': conn.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='deposit'").fetchone()[0],
-        'total_withdraw': conn.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='withdrawal'").fetchone()[0],
-        'total_loans':    conn.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='loan'").fetchone()[0],
-        'total_rewards':  conn.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='reward'").fetchone()[0],
+        'total_users': total_users,
+        'total_deposits': total_deposits,
+        'total_withdraw': total_withdraw,
+        'total_loans': total_loans,
+        'total_rewards': total_rewards,
     }
+    cursor.close()
     conn.close()
     return render_template('admin_dashboard.html', user_data=user_data, stats=stats)
 
@@ -191,11 +182,13 @@ def register_user():
         photo_path = save_photo(request.files.get('photo'))
 
         conn = get_db()
-        conn.execute(
-            "INSERT INTO users (name,id_number,phone,location,photo,notes) VALUES (?,?,?,?,?,?)",
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (name,id_number,phone,location,photo,notes) VALUES (%s,%s,%s,%s,%s,%s)",
             (name, id_number, phone, location, photo_path, notes)
         )
         conn.commit()
+        cursor.close()
         conn.close()
         flash(f'User "{name}" registered successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
@@ -208,18 +201,24 @@ def user_detail(user_id):
     if 'admin' not in session:
         return redirect(url_for('admin_login'))
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM users WHERE id=%s", (user_id,))
+    user = cursor.fetchone()
     if not user:
+        cursor.close()
         conn.close()
         return 'User not found', 404
-    transactions = conn.execute(
-        "SELECT * FROM transactions WHERE user_id=? ORDER BY date DESC", (user_id,)
-    ).fetchall()
+    cursor.execute(
+        "SELECT * FROM transactions WHERE user_id=%s ORDER BY date DESC", (user_id,)
+    )
+    transactions = cursor.fetchall()
     totals = user_totals(user_id, conn)
     net = totals['deposits'] + totals['rewards'] - totals['withdrawals'] - totals['borrowed']
-    msgs = conn.execute(
-        "SELECT * FROM messages WHERE receiver_id=? ORDER BY date_sent DESC", (user_id,)
-    ).fetchall()
+    cursor.execute(
+        "SELECT * FROM messages WHERE receiver_id=%s ORDER BY date_sent DESC", (user_id,)
+    )
+    msgs = cursor.fetchall()
+    cursor.close()
     conn.close()
     return render_template('user_detail.html', user=user, transactions=transactions,
                            totals=totals, net=net, messages=msgs)
@@ -231,20 +230,23 @@ def add_transaction(user_id):
     if 'admin' not in session:
         return redirect(url_for('admin_login'))
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM users WHERE id=%s", (user_id,))
+    user = cursor.fetchone()
     if request.method == 'POST':
         t_type = request.form['type']
         amount = float(request.form['amount'])
         note   = request.form.get('note', '')
-        date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        conn.execute(
-            "INSERT INTO transactions (user_id,type,amount,note,date) VALUES (?,?,?,?,?)",
-            (user_id, t_type, amount, note, date_now)
+        cursor.execute(
+            "INSERT INTO transactions (user_id,type,amount,note) VALUES (%s,%s,%s,%s)",
+            (user_id, t_type, amount, note)
         )
         conn.commit()
+        cursor.close()
         conn.close()
         flash(f'Transaction ({t_type}) of {amount:,.0f} recorded.', 'success')
         return redirect(url_for('user_detail', user_id=user_id))
+    cursor.close()
     conn.close()
     return render_template('add_transaction.html', user=user)
 
@@ -255,27 +257,31 @@ def admin_message():
     if 'admin' not in session:
         return redirect(url_for('admin_login'))
     conn = get_db()
-    users = conn.execute("SELECT id, name FROM users ORDER BY name").fetchall()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT id, name FROM users ORDER BY name")
+    users = cursor.fetchall()
     if request.method == 'POST':
         message_text = request.form['message']
         receiver_id  = request.form['receiver_id']
-        date_now     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if receiver_id == 'all':
-            all_ids = conn.execute("SELECT id FROM users").fetchall()
+            cursor.execute("SELECT id FROM users")
+            all_ids = cursor.fetchall()
             for row in all_ids:
-                conn.execute(
-                    "INSERT INTO messages (sender_type,sender_id,receiver_id,message,date_sent) VALUES (?,?,?,?,?)",
-                    ('admin', 0, row['id'], message_text, date_now)
+                cursor.execute(
+                    "INSERT INTO messages (sender_type,sender_id,receiver_id,message) VALUES (%s,%s,%s,%s)",
+                    ('admin', 0, row['id'], message_text)
                 )
         else:
-            conn.execute(
-                "INSERT INTO messages (sender_type,sender_id,receiver_id,message,date_sent) VALUES (?,?,?,?,?)",
-                ('admin', 0, int(receiver_id), message_text, date_now)
+            cursor.execute(
+                "INSERT INTO messages (sender_type,sender_id,receiver_id,message) VALUES (%s,%s,%s,%s)",
+                ('admin', 0, int(receiver_id), message_text)
             )
         conn.commit()
+        cursor.close()
         conn.close()
         flash('Message sent!', 'success')
         return redirect(url_for('admin_dashboard'))
+    cursor.close()
     conn.close()
     return render_template('admin_message.html', users=users)
 
@@ -284,18 +290,24 @@ def admin_message():
 @app.route('/user/<int:user_id>')
 def user_dashboard(user_id):
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM users WHERE id=%s", (user_id,))
+    user = cursor.fetchone()
     if not user:
+        cursor.close()
         conn.close()
         return 'User not found', 404
-    transactions = conn.execute(
-        "SELECT * FROM transactions WHERE user_id=? ORDER BY date DESC", (user_id,)
-    ).fetchall()
+    cursor.execute(
+        "SELECT * FROM transactions WHERE user_id=%s ORDER BY date DESC", (user_id,)
+    )
+    transactions = cursor.fetchall()
     totals = user_totals(user_id, conn)
     net = totals['deposits'] + totals['rewards'] - totals['withdrawals'] - totals['borrowed']
-    messages = conn.execute(
-        "SELECT * FROM messages WHERE receiver_id=? ORDER BY date_sent DESC", (user_id,)
-    ).fetchall()
+    cursor.execute(
+        "SELECT * FROM messages WHERE receiver_id=%s ORDER BY date_sent DESC", (user_id,)
+    )
+    messages = cursor.fetchall()
+    cursor.close()
     conn.close()
     return render_template('user_dashboard.html', user=user, transactions=transactions,
                            totals=totals, net=net, messages=messages)
@@ -306,13 +318,14 @@ def user_dashboard(user_id):
 def user_send_message(user_id):
     message_text = request.form.get('message', '').strip()
     if message_text:
-        date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         conn = get_db()
-        conn.execute(
-            "INSERT INTO messages (sender_type,sender_id,receiver_id,message,date_sent) VALUES (?,?,?,?,?)",
-            ('user', user_id, 0, message_text, date_now)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO messages (sender_type,sender_id,receiver_id,message) VALUES (%s,%s,%s,%s)",
+            ('user', user_id, 0, message_text)
         )
         conn.commit()
+        cursor.close()
         conn.close()
         flash('Message sent to admin!', 'success')
     return redirect(url_for('user_dashboard', user_id=user_id))
@@ -320,6 +333,5 @@ def user_send_message(user_id):
 
 # ─────────────────────── RUN ───────────────────────
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)

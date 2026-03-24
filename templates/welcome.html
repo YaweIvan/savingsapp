@@ -8,25 +8,7 @@
     <img src="{{ url_for('static', filename='logoicon.png') }}" alt="SavingsApp logo" class="hero-logo splash-logo" />
   </div>
   <h1>SavingsApp</h1>
-  <p class="splash-subtitle">Preparing your dashboard experience...</p>
-  <p class="splash-redirect-note">Redirecting to login in <span id="redirect-seconds">3</span>s</p>
-  <a href="{{ url_for('admin_login') }}" class="btn-white splash-login-link">Go to Login Now</a>
+  <p class="splash-subtitle">Welcome to your savings dashboard.</p>
+  <a href="{{ url_for('admin_login') }}" class="btn-white splash-login-link">Login</a>
 </div>
-
-<script>
-const loginUrl = "{{ url_for('admin_login') }}";
-let remaining = 3;
-const secondsNode = document.getElementById('redirect-seconds');
-
-const timer = setInterval(() => {
-  remaining -= 1;
-  if (secondsNode && remaining >= 0) {
-    secondsNode.textContent = String(remaining);
-  }
-  if (remaining <= 0) {
-    clearInterval(timer);
-    window.location.href = loginUrl;
-  }
-}, 1000);
-</script>
 {% endblock %}
