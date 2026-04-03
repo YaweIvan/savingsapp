@@ -108,11 +108,13 @@ img { max-width: 100%; }
 }
 .stat-card .label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); }
 .stat-card .value { font-size: 1.4rem; font-weight: 700; }
-.stat-card.green  { border-left: 4px solid var(--green);  } .stat-card.green  .value { color: var(--green); }
-.stat-card.blue   { border-left: 4px solid var(--blue);   } .stat-card.blue   .value { color: var(--blue); }
-.stat-card.red    { border-left: 4px solid var(--red);    } .stat-card.red    .value { color: var(--red); }
-.stat-card.amber  { border-left: 4px solid var(--amber);  } .stat-card.amber  .value { color: var(--amber); }
-.stat-card.purple { border-left: 4px solid var(--purple); } .stat-card.purple .value { color: var(--purple); }
+.stat-card.green,
+.stat-card.blue,
+.stat-card.red,
+.stat-card.amber,
+.stat-card.purple {
+  border-left: 4px solid var(--gray-200);
+}
 
 /* ── Buttons ── */
 .btn {
