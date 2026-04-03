@@ -6,37 +6,32 @@ import os
 load_dotenv()
 
 def setup():
-    # Step 1: Connect to default 'postgres' db and create savings_app if needed
+    # Step 1: Connect to default 'postgres' db to verify connection
     try:
         conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST', 'localhost'),
-            user=os.environ.get('DB_USER', 'postgres'),
-            password=os.environ.get('DB_PASSWORD', 'postgres'),
-            port=os.environ.get('DB_PORT', '5432'),
-            database='postgres'
+            host=os.environ.get('PGHOST', 'localhost'),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'postgres'),
+            port=os.environ.get('PGPORT', '5432'),
+            database=os.environ.get('PGDATABASE', 'railway')
         )
         conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'savings_app'")
-        if cursor.fetchone():
-            print("[OK] Database 'savings_app' already exists")
-        else:
-            cursor.execute("CREATE DATABASE savings_app")
-            print("[OK] Database 'savings_app' created")
+        print("[OK] Connected to PostgreSQL")
         cursor.close()
         conn.close()
     except Exception as e:
         print(f"[ERROR] Could not connect to PostgreSQL: {e}")
         sys.exit(1)
 
-    # Step 2: Connect to savings_app and create tables
+    # Step 2: Connect and create tables
     try:
         conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST', 'localhost'),
-            user=os.environ.get('DB_USER', 'postgres'),
-            password=os.environ.get('DB_PASSWORD', 'postgres'),
-            port=os.environ.get('DB_PORT', '5432'),
-            database='savings_app'
+            host=os.environ.get('PGHOST', 'localhost'),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'postgres'),
+            port=os.environ.get('PGPORT', '5432'),
+            database=os.environ.get('PGDATABASE', 'railway')
         )
         cursor = conn.cursor()
 
@@ -99,7 +94,7 @@ def setup():
         conn.commit()
         cursor.close()
         conn.close()
-        print("\n[DONE] Setup complete! Run: python app.py")
+        print("\n[DONE] Setup complete!")
 
     except Exception as e:
         print(f"[ERROR] Error creating tables: {e}")
