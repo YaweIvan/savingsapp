@@ -20,12 +20,13 @@ def internal_error(e):
     return Response(f'<pre style="color:red;padding:2rem;">{tb}</pre>', status=500)
 
 # PostgreSQL Connection
+# PostgreSQL Connection
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'database': os.environ.get('DB_NAME', 'savings_app'),
-    'user': os.environ.get('DB_USER', 'postgres'),
-    'password': os.environ.get('DB_PASSWORD', 'postgres'),
-    'port': os.environ.get('DB_PORT', '5432')
+    'host': os.environ.get('PGHOST', 'localhost'),
+    'database': os.environ.get('PGDATABASE', 'savings_app'),
+    'user': os.environ.get('PGUSER', 'postgres'),
+    'password': os.environ.get('PGPASSWORD', 'postgres'),
+    'port': os.environ.get('PGPORT', '5432')
 }
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
